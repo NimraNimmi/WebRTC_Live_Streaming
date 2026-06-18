@@ -25,11 +25,11 @@
 <table>
 <tr>
 <td align="center" width="50%">
-<img src="docs/screenshot-directory.png" alt="Live session directory screen" width="100%" />
+<img src="images/screenshot-directory.png" alt="Live session directory screen" width="100%" />
 <br/><sub>Live session directory — see who's live, join with one click</sub>
 </td>
 <td align="center" width="50%">
-<img src="docs/screenshot-room.png" alt="Live room with video, chat, and bidding" width="100%" />
+<img src="images/screenshot-room.png" alt="Live room with video, chat, and bidding" width="100%" />
 <br/><sub>Live room — video, real-time chat, and quick-bid buttons</sub>
 </td>
 </tr>
