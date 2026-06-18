@@ -451,10 +451,23 @@
     showRoom();
   });
 
-  // A viewer joined OUR room — server tells the host directly, so there's no
-  // race condition based on whether the host's camera was already on.
-  socket.on('webrtc:viewer-joined', async ({ viewerId }) => {
-    if (!localStream) return; // shouldn't happen, but guard defensively
+  // A viewer joined OUR room. Use a retry loop to handle the race condition
+  // where viewer joins within milliseconds of room:created (localStream not set yet).
+  socket.on('webrtc:viewer-joined', ({ viewerId }) => {
+    sendOfferToViewer(viewerId, 0);
+  });
+
+  async function sendOfferToViewer(viewerId, attempt) {
+    if (!localStream) {
+      if (attempt < 6) setTimeout(() => sendOfferToViewer(viewerId, attempt + 1), 500);
+      return; // retry up to 3 seconds, then give up
+    }
+
+    // Close any stale connection for this viewer
+    if (hostPeerConnections[viewerId]) {
+      hostPeerConnections[viewerId].close();
+    }
+
     const pc = new RTCPeerConnection(RTC_CONFIG);
     hostPeerConnections[viewerId] = pc;
 
@@ -466,10 +479,24 @@
       }
     };
 
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    socket.emit('webrtc:offer', { to: viewerId, sdp: offer });
-  });
+    // Auto-retry if ICE fails or disconnects
+    pc.oniceconnectionstatechange = () => {
+      const s = pc.iceConnectionState;
+      if ((s === 'failed' || s === 'disconnected') && hostPeerConnections[viewerId] === pc) {
+        console.warn('ICE ' + s + ' for viewer', viewerId, '— retrying');
+        setTimeout(() => sendOfferToViewer(viewerId, 0), 1500);
+      }
+    };
+
+    try {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit('webrtc:offer', { to: viewerId, sdp: offer });
+    } catch (err) {
+      console.error('Offer failed (attempt ' + attempt + '):', err);
+      if (attempt < 3) setTimeout(() => sendOfferToViewer(viewerId, attempt + 1), 1000);
+    }
+  }
 
   socket.on('webrtc:answer', async ({ from, sdp }) => {
     const pc = hostPeerConnections[from];
@@ -524,6 +551,14 @@
     resetVideoUI();
     placeholderText.textContent = 'Connecting to ' + hostName + '\u2019s stream…';
 
+    // If no video in 12s, show retry hint instead of hanging indefinitely
+    if (window._connectTimeout) clearTimeout(window._connectTimeout);
+    window._connectTimeout = setTimeout(() => {
+      if (remoteVideo.classList.contains('hidden')) {
+        placeholderText.textContent = 'Stream slow to connect — try leaving and rejoining.';
+      }
+    }, 12000);
+
     clearChat();
     messages.forEach(appendMessage);
 
@@ -536,6 +571,7 @@
 
   socket.on('webrtc:offer', async ({ from, sdp }) => {
     cleanupViewerPeerConnection();
+    if (window._connectTimeout) { clearTimeout(window._connectTimeout); window._connectTimeout = null; }
     viewerPC = new RTCPeerConnection(RTC_CONFIG);
 
     viewerPC.ontrack = (event) => {
