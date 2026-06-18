@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🎥 LiveBid
+# 🎥 WebRTC_Live_Streaming
 
 **Real-time live-commerce prototype** — multi-room live streaming, instant chat, and text-based bidding, built on Node.js, Express, Socket.io, and native WebRTC.
 
@@ -41,7 +41,7 @@
 1. Run the app locally (`npm install && npm start`) and open `http://localhost:3000`.
 2. Go live in one window, join from another, send a few chat messages and bids.
 3. Take screenshots of both screens.
-4. Save them into a `docs/` folder in this repo as `screenshot-directory.png` and `screenshot-room.png`.
+4. Save them into a `images/` folder in this repo as `screenshot-directory.png` and `screenshot-room.png`.
 5. Commit and push — GitHub will render them automatically in this README.
 
 ---
@@ -61,7 +61,7 @@
 ## 🏗 Architecture
 
 <div align="center">
-<img src="docs/architecture.svg" alt="LiveBid architecture diagram" width="100%" />
+<img src="images/architecture.svg" alt="LiveBid architecture diagram" width="100%" />
 </div>
 
 **The most important detail:** video is **peer-to-peer**. Once a viewer joins a room, the server's job is done — it only relayed a handful of small signaling messages to help the two browsers find each other. From that point on, the actual video stream flows directly between the seller's browser and the viewer's browser. This is exactly how WebRTC is used in production by Google Meet, Discord, and similar real-time video products — it's also why this architecture can scale to many concurrent viewers without the server's bandwidth becoming a bottleneck for video itself.
@@ -84,8 +84,8 @@ State is currently held in memory on the server (a `Map` of active rooms). This 
 ### Run locally
 
 ```bash
-git clone https://github.com/your-username/livebid.git
-cd livebid
+git clone https://github.com/NimraNimmi/WebRTC_Live_Streaming
+cd WebRTC_Live_Streaming
 npm install
 npm start
 ```
@@ -109,8 +109,10 @@ livebid/
 ├── package.json
 ├── public/
 │   └── index.html     # Single-page app: directory screen + live room screen
-├── docs/
+├── images/
 │   └── architecture.svg
+│   └── screenshot-directory.png
+│   └── screenshot-room.png
 ├── Dockerfile          # For container-based deployment (e.g. Fly.io)
 ├── fly.toml             # Fly.io app configuration
 └── DEPLOY.md            # Step-by-step Fly.io deployment guide
