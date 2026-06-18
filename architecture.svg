@@ -1,0 +1,42 @@
+<svg width="100%" viewBox="0 0 680 480" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="LiveBid architecture diagram">
+<title>LiveBid system architecture</title>
+<desc>Two browser clients connect to a single Node.js server. Express serves static files. Socket.io handles room directory sync, chat, and WebRTC signaling relay. Video itself flows directly between browsers, peer to peer, bypassing the server.</desc>
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<rect width="680" height="480" fill="#0D0F14"/>
+
+<rect x="40" y="40" width="260" height="120" rx="16" fill="#E6F1FB" stroke="#185FA5" stroke-width="1"/>
+<text x="56" y="68" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#042C53">Browser — Seller</text>
+<text x="56" y="90" font-family="Arial, sans-serif" font-size="12" fill="#185FA5">getUserMedia camera/mic</text>
+<text x="56" y="108" font-family="Arial, sans-serif" font-size="12" fill="#185FA5">Clicks "Go Live"</text>
+
+<rect x="380" y="40" width="260" height="120" rx="16" fill="#E6F1FB" stroke="#185FA5" stroke-width="1"/>
+<text x="396" y="68" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#042C53">Browser — Buyer</text>
+<text x="396" y="90" font-family="Arial, sans-serif" font-size="12" fill="#185FA5">Sees live directory</text>
+<text x="396" y="108" font-family="Arial, sans-serif" font-size="12" fill="#185FA5">Clicks "Join"</text>
+
+<rect x="180" y="220" width="320" height="220" rx="20" fill="#1B1E29" stroke="#5F5E5A" stroke-width="1"/>
+<text x="196" y="250" font-family="Arial, sans-serif" font-size="15" font-weight="bold" fill="#E5E7EB">Node.js server</text>
+<text x="196" y="270" font-family="Arial, sans-serif" font-size="12" fill="#B4B2A9">Express + Socket.io</text>
+
+<rect x="210" y="290" width="260" height="50" rx="10" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1"/>
+<text x="340" y="312" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#04342C">Room directory + chat</text>
+<text x="340" y="330" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#0F6E56">rooms map, broadcast events</text>
+
+<rect x="210" y="360" width="260" height="50" rx="10" fill="#FAECE7" stroke="#993C1D" stroke-width="1"/>
+<text x="340" y="382" text-anchor="middle" font-family="Arial, sans-serif" font-size="14" font-weight="bold" fill="#4A1B0C">WebRTC signaling relay</text>
+<text x="340" y="400" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" fill="#993C1D">offer, answer, ICE only</text>
+
+<path d="M170 160 L170 290 L208 305" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M510 160 L510 290 L472 305" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M150 160 L150 380 L208 385" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#arrow)"/>
+<path d="M530 160 L530 380 L472 385" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+<path d="M300 100 C 340 100, 340 100, 380 100" fill="none" stroke="#1D9E75" stroke-width="2.5" marker-end="url(#arrow)"/>
+<text x="340" y="20" text-anchor="middle" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="#9FE1CB">Direct P2P video — never touches the server</text>
+
+</svg>
