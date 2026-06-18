@@ -395,6 +395,9 @@
     remoteVideo.classList.add('hidden');
     localPreview.classList.add('hidden');
     remoteVideo.srcObject = null;
+    remoteVideo.muted = false;
+    localPreview.muted = true;
+    localPreview.volume = 0;
     videoPlaceholder.classList.remove('hidden');
     liveBadge.classList.add('hidden');
   }
@@ -409,7 +412,16 @@
 
   async function startHosting(itemName) {
     try {
-      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: {
+          echoCancellation: { ideal: true },
+          noiseSuppression: { ideal: true },
+          autoGainControl: { ideal: true },
+          sampleRate: { ideal: 48000 },
+          channelCount: { ideal: 1 },
+        },
+      });
     } catch (err) {
       alert('Camera/mic permission denied or unavailable: ' + err.message);
       return;
@@ -429,6 +441,8 @@
 
     resetVideoUI();
     localPreview.srcObject = localStream;
+    localPreview.muted = true;       // host must NOT hear their own audio — causes feedback
+    localPreview.volume = 0;
     localPreview.classList.remove('hidden');
     videoPlaceholder.classList.add('hidden');
     liveBadge.classList.remove('hidden');
@@ -526,6 +540,8 @@
 
     viewerPC.ontrack = (event) => {
       remoteVideo.srcObject = event.streams[0];
+      remoteVideo.muted = false;     // viewers must hear the host
+      remoteVideo.volume = 1.0;
       remoteVideo.classList.remove('hidden');
       videoPlaceholder.classList.add('hidden');
       liveBadge.classList.remove('hidden');
