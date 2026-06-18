@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LiveBid — Live Commerce Demo</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    darkMode: 'class',
+    theme: {
+      extend: {
+        colors: {
+          base: '#08090D',
+          surface: '#15171F',
+          surface2: '#1B1E29',
+          border: '#262A38',
+          accent: '#7C3AED',
+          accent2: '#9F75FF',
+          money: '#10B981',
+          live: '#F59E0B',
+        },
+        fontFamily: {
+          display: ['Space Grotesk', 'sans-serif'],
+          body: ['Inter', 'sans-serif'],
+          mono: ['JetBrains Mono', 'monospace'],
+        },
+      },
+    },
+  };
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<script src="/socket.io/socket.io.js"></script>
+<style>
+  body { background-color: #08090D; font-family: 'Inter', sans-serif; }
+  .font-display { font-family: 'Space Grotesk', sans-serif; }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+
+  .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+  .scrollbar-thin::-webkit-scrollbar-thumb { background-color: #2E3340; border-radius: 9999px; }
+  .scrollbar-thin::-webkit-scrollbar-track { background-color: transparent; }
+
+  @keyframes pop-in {
+    0% { opacity: 0; transform: translateY(8px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  .msg-pop { animation: pop-in 0.18s ease-out; }
+
+  @keyframes bid-flash {
+    0% { background-color: rgba(16, 185, 129, 0.35); }
+    100% { background-color: transparent; }
+  }
+  .bid-flash { animation: bid-flash 0.7s ease-out; }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+  .live-dot { animation: pulse-dot 1.3s ease-in-out infinite; }
+
+  @keyframes ring-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.55); }
+    100% { box-shadow: 0 0 0 10px rgba(245, 158, 11, 0); }
+  }
+  .ring-pulse { animation: ring-pulse 1.8s ease-out infinite; }
+
+  @keyframes slide-up {
+    0% { opacity: 0; transform: translateY(14px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  .slide-up { animation: slide-up 0.35s ease-out; }
+</style>
+</head>
+<body class="min-h-screen bg-base text-gray-100 font-body">
+
+<!-- ============================================================ -->
+<!-- TOP BAR -->
+<!-- ============================================================ -->
+<header class="border-b border-border bg-surface/80 backdrop-blur sticky top-0 z-30">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-lg bg-accent flex items-center justify-center font-display font-bold text-sm">LB</div>
+      <span class="font-display font-semibold text-lg tracking-tight">LiveBid</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-xs text-gray-500 hidden sm:inline" id="identityLabel"></span>
+      <span id="connStatus" class="text-xs px-2.5 py-1 rounded-full bg-surface2 text-gray-400 border border-border">connecting…</span>
+    </div>
+  </div>
+</header>
+
+<!-- ============================================================ -->
+<!-- SCREEN 1: DIRECTORY — list of all currently-live sessions -->
+<!-- ============================================================ -->
+<main id="screenDirectory" class="max-w-6xl mx-auto px-4 py-8">
+
+  <div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+    <div>
+      <h1 class="font-display text-2xl font-semibold text-white">Live sessions</h1>
+      <p class="text-sm text-gray-500 mt-0.5">Join a seller's live stream, or start your own.</p>
+    </div>
+    <button id="openGoLiveModalBtn" class="bg-accent hover:bg-accent2 transition px-4 py-2.5 rounded-lg text-sm font-semibold flex items-center gap-2 shrink-0">
+      <span class="w-2 h-2 rounded-full bg-white"></span>
+      Go Live
+    </button>
+  </div>
+
+  <div id="emptyState" class="hidden border border-dashed border-border rounded-2xl py-16 text-center">
+    <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-surface2 flex items-center justify-center">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-2.36a.75.75 0 011.03.67v6.38a.75.75 0 01-1.03.67l-4.72-2.36M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+      </svg>
+    </div>
+    <p class="text-gray-400 font-medium">No one is live right now</p>
+    <p class="text-gray-600 text-sm mt-1">Be the first — click "Go Live" above.</p>
+  </div>
+
+  <div id="roomGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+</main>
+
+<!-- ============================================================ -->
+<!-- SCREEN 2: LIVE ROOM — video + chat for the joined/hosted session -->
+<!-- ============================================================ -->
+<main id="screenRoom" class="hidden max-w-6xl mx-auto px-4 py-6">
+
+  <button id="backToDirectoryBtn" class="flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition mb-4">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+    </svg>
+    All live sessions
+  </button>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+    <!-- Video column -->
+    <section class="lg:col-span-2 flex flex-col gap-4">
+
+      <div class="relative rounded-2xl overflow-hidden bg-black border border-border aspect-video flex items-center justify-center">
+        <video id="remoteVideo" class="w-full h-full object-cover hidden" autoplay playsinline></video>
+        <video id="localPreview" class="w-full h-full object-cover hidden" autoplay playsinline muted></video>
+
+        <div id="videoPlaceholder" class="text-center px-6">
+          <div class="w-14 h-14 mx-auto mb-3 rounded-full bg-surface2 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-2.36a.75.75 0 011.03.67v6.38a.75.75 0 01-1.03.67l-4.72-2.36M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+            </svg>
+          </div>
+          <p class="text-gray-400 text-sm" id="placeholderText">Connecting to stream…</p>
+        </div>
+
+        <div id="liveBadge" class="hidden absolute top-3 left-3 flex items-center gap-1.5 bg-live text-black px-2.5 py-1 rounded-md text-xs font-bold tracking-wide">
+          <span class="w-1.5 h-1.5 rounded-full bg-black live-dot"></span> LIVE
+        </div>
+
+        <div class="absolute top-3 right-3 flex items-center gap-1.5 bg-black/60 px-2.5 py-1 rounded-md text-xs font-medium">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+          </svg>
+          <span id="viewerCount">0</span>
+        </div>
+      </div>
+
+      <div class="bg-surface border border-border rounded-xl p-4 flex items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="text-xs uppercase tracking-wide text-gray-500 mb-0.5" id="roomKindLabel">Live session</p>
+          <h2 id="roomItemName" class="font-display text-lg font-semibold text-gray-100 truncate">—</h2>
+          <p class="text-xs text-gray-500 mt-0.5">Hosted by <span id="roomHostName" class="text-gray-300 font-medium">—</span></p>
+        </div>
+        <button id="endLiveBtn" class="hidden bg-red-600/90 hover:bg-red-500 transition px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap shrink-0">
+          End live
+        </button>
+        <button id="leaveRoomBtn" class="hidden bg-surface2 hover:bg-border transition px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap shrink-0 border border-border">
+          Leave
+        </button>
+      </div>
+
+      <!-- Quick bid shortcuts — these just send tagged chat messages (text-based bidding) -->
+      <div class="bg-surface border border-border rounded-xl p-4">
+        <p class="text-xs uppercase tracking-wide text-gray-500 mb-3">Quick bid</p>
+        <div class="flex flex-wrap gap-2">
+          <button data-amount="10" class="bidBtn flex-1 min-w-[90px] bg-surface2 hover:bg-money hover:text-black transition px-4 py-3 rounded-lg font-semibold text-sm border border-border">+$10</button>
+          <button data-amount="25" class="bidBtn flex-1 min-w-[90px] bg-surface2 hover:bg-money hover:text-black transition px-4 py-3 rounded-lg font-semibold text-sm border border-border">+$25</button>
+          <button data-amount="50" class="bidBtn flex-1 min-w-[90px] bg-surface2 hover:bg-money hover:text-black transition px-4 py-3 rounded-lg font-semibold text-sm border border-border">+$50</button>
+        </div>
+        <p class="text-[11px] text-gray-500 mt-2">Sends a bid message to everyone in this session, instantly.</p>
+      </div>
+    </section>
+
+    <!-- Chat column -->
+    <section class="bg-surface border border-border rounded-xl flex flex-col h-[560px] lg:h-auto overflow-hidden">
+      <div class="px-4 py-3 border-b border-border flex items-center justify-between">
+        <h3 class="font-display font-semibold text-sm">Live Chat</h3>
+        <span class="text-[11px] text-gray-500">visible to everyone here</span>
+      </div>
+
+      <div id="chatFeed" class="flex-1 overflow-y-auto scrollbar-thin px-4 py-3 space-y-2.5 text-sm"></div>
+
+      <form id="chatForm" class="border-t border-border p-3 flex gap-2">
+        <input
+          id="chatInput"
+          type="text"
+          maxlength="280"
+          autocomplete="off"
+          placeholder="Say something…"
+          class="flex-1 bg-surface2 border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent placeholder-gray-500"
+        />
+        <button type="submit" class="bg-accent hover:bg-accent2 transition px-4 py-2 rounded-lg text-sm font-semibold shrink-0">
+          Send
+        </button>
+      </form>
+    </section>
+  </div>
+</main>
+
+<!-- ============================================================ -->
+<!-- GO LIVE MODAL -->
+<!-- ============================================================ -->
+<div id="goLiveModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-40 flex items-center justify-center px-4">
+  <div class="bg-surface border border-border rounded-2xl p-6 max-w-md w-full slide-up">
+    <h3 class="font-display text-lg font-semibold mb-1">Start your live session</h3>
+    <p class="text-sm text-gray-500 mb-4">Viewers will see this title in the live directory.</p>
+
+    <label class="text-xs text-gray-400 mb-1.5 block">What are you selling?</label>
+    <input id="itemNameInput" type="text" maxlength="60" placeholder="e.g. Vintage Leica M3 Camera"
+      class="w-full bg-surface2 border border-border rounded-lg px-3 py-2.5 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-accent placeholder-gray-500" />
+
+    <div class="flex gap-2">
+      <button id="cancelGoLiveBtn" class="flex-1 bg-surface2 hover:bg-border transition px-4 py-2.5 rounded-lg text-sm font-semibold border border-border">
+        Cancel
+      </button>
+      <button id="confirmGoLiveBtn" class="flex-1 bg-accent hover:bg-accent2 transition px-4 py-2.5 rounded-lg text-sm font-semibold">
+        Start streaming
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const socket = io();
+
+  // -----------------------------------------------------------------------
+  // IDENTITY
+  // -----------------------------------------------------------------------
+  const displayName = 'Guest-' + Math.floor(1000 + Math.random() * 9000);
+  document.getElementById('identityLabel').textContent = 'you: ' + displayName;
+
+  const connStatus = document.getElementById('connStatus');
+  socket.on('connect', () => {
+    connStatus.textContent = 'connected';
+    connStatus.className = 'text-xs px-2.5 py-1 rounded-full bg-emerald-900/40 text-emerald-400 border border-emerald-800/50';
+    socket.emit('identity:set', { displayName });
+  });
+  socket.on('disconnect', () => {
+    connStatus.textContent = 'disconnected';
+    connStatus.className = 'text-xs px-2.5 py-1 rounded-full bg-red-900/40 text-red-400 border border-red-800/50';
+  });
+
+  // -----------------------------------------------------------------------
+  // SCREEN ROUTING (Directory <-> Live Room), no page reload
+  // -----------------------------------------------------------------------
+  const screenDirectory = document.getElementById('screenDirectory');
+  const screenRoom = document.getElementById('screenRoom');
+
+  function showDirectory() {
+    screenDirectory.classList.remove('hidden');
+    screenRoom.classList.add('hidden');
+  }
+  function showRoom() {
+    screenDirectory.classList.add('hidden');
+    screenRoom.classList.remove('hidden');
+  }
+
+  // -----------------------------------------------------------------------
+  // ROOM DIRECTORY (Screen 1)
+  // -----------------------------------------------------------------------
+  const roomGrid = document.getElementById('roomGrid');
+  const emptyState = document.getElementById('emptyState');
+  let myCurrentRoomId = null; // set once we're hosting or have joined
+  let amHost = false;
+
+  function timeAgo(ts) {
+    const sec = Math.floor((Date.now() - ts) / 1000);
+    if (sec < 60) return 'just now';
+    const min = Math.floor(sec / 60);
+    return min + (min === 1 ? ' min ago' : ' mins ago');
+  }
+
+  function renderRoomList(rooms) {
+    roomGrid.innerHTML = '';
+    emptyState.classList.toggle('hidden', rooms.length > 0);
+
+    rooms.forEach((room) => {
+      const card = document.createElement('div');
+      card.className = 'bg-surface border border-border rounded-xl overflow-hidden flex flex-col slide-up';
+
+      const isMine = room.roomId === socket.id;
+
+      card.innerHTML = `
+        <div class="relative bg-black aspect-video flex items-center justify-center">
+          <div class="absolute top-2.5 left-2.5 flex items-center gap-1.5 bg-live text-black px-2 py-0.5 rounded-md text-[11px] font-bold">
+            <span class="w-1.5 h-1.5 rounded-full bg-black live-dot"></span> LIVE
+          </div>
+          <div class="absolute top-2.5 right-2.5 bg-black/60 px-2 py-0.5 rounded-md text-[11px] text-gray-200">
+            ${room.viewerCount} watching
+          </div>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 10.5l4.72-2.36a.75.75 0 011.03.67v6.38a.75.75 0 01-1.03.67l-4.72-2.36M4.5 18.75h9a2.25 2.25 0 002.25-2.25v-9a2.25 2.25 0 00-2.25-2.25h-9A2.25 2.25 0 002.25 7.5v9a2.25 2.25 0 002.25 2.25z" />
+          </svg>
+        </div>
+        <div class="p-4 flex flex-col gap-2.5 flex-1">
+          <div>
+            <p class="font-display font-semibold text-gray-100 truncate">${escapeHtml(room.itemName)}</p>
+            <p class="text-xs text-gray-500 mt-0.5">${escapeHtml(room.hostName)}${isMine ? ' (you)' : ''} · ${timeAgo(room.startedAt)}</p>
+          </div>
+          <button data-room-id="${room.roomId}" data-is-mine="${isMine}" class="joinRoomBtn mt-auto bg-accent hover:bg-accent2 transition px-3 py-2 rounded-lg text-sm font-semibold">
+            ${isMine ? 'Go to my live' : 'Join'}
+          </button>
+        </div>
+      `;
+      roomGrid.appendChild(card);
+    });
+
+    roomGrid.querySelectorAll('.joinRoomBtn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const roomId = btn.getAttribute('data-room-id');
+        const isMine = btn.getAttribute('data-is-mine') === 'true';
+        if (isMine) {
+          enterRoomAsHost(roomId);
+        } else {
+          joinRoom(roomId);
+        }
+      });
+    });
+  }
+
+  socket.on('rooms:list', (rooms) => {
+    renderRoomList(rooms);
+  });
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  document.getElementById('backToDirectoryBtn').addEventListener('click', () => {
+    if (amHost) {
+      // Hosts leaving the room view does NOT end the stream — just go look at directory.
+      showDirectory();
+    } else {
+      socket.emit('room:leave');
+      cleanupViewerPeerConnection();
+      myCurrentRoomId = null;
+      showDirectory();
+    }
+  });
+
+  // -----------------------------------------------------------------------
+  // GO LIVE MODAL
+  // -----------------------------------------------------------------------
+  const goLiveModal = document.getElementById('goLiveModal');
+  const itemNameInput = document.getElementById('itemNameInput');
+
+  document.getElementById('openGoLiveModalBtn').addEventListener('click', () => {
+    goLiveModal.classList.remove('hidden');
+    itemNameInput.focus();
+  });
+  document.getElementById('cancelGoLiveBtn').addEventListener('click', () => {
+    goLiveModal.classList.add('hidden');
+  });
+  document.getElementById('confirmGoLiveBtn').addEventListener('click', async () => {
+    const itemName = itemNameInput.value.trim();
+    goLiveModal.classList.add('hidden');
+    await startHosting(itemName);
+  });
+
+  // -----------------------------------------------------------------------
+  // ROOM STATE (shared UI elements between host + viewer views)
+  // -----------------------------------------------------------------------
+  const remoteVideo = document.getElementById('remoteVideo');
+  const localPreview = document.getElementById('localPreview');
+  const videoPlaceholder = document.getElementById('videoPlaceholder');
+  const placeholderText = document.getElementById('placeholderText');
+  const liveBadge = document.getElementById('liveBadge');
+  const viewerCountEl = document.getElementById('viewerCount');
+  const roomItemName = document.getElementById('roomItemName');
+  const roomHostName = document.getElementById('roomHostName');
+  const roomKindLabel = document.getElementById('roomKindLabel');
+  const endLiveBtn = document.getElementById('endLiveBtn');
+  const leaveRoomBtn = document.getElementById('leaveRoomBtn');
+
+  function resetVideoUI() {
+    remoteVideo.classList.add('hidden');
+    localPreview.classList.add('hidden');
+    remoteVideo.srcObject = null;
+    videoPlaceholder.classList.remove('hidden');
+    liveBadge.classList.add('hidden');
+  }
+
+  // -----------------------------------------------------------------------
+  // HOST FLOW
+  // -----------------------------------------------------------------------
+  let localStream = null;
+  const hostPeerConnections = {}; // viewerSocketId -> RTCPeerConnection
+
+  const RTC_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+  async function startHosting(itemName) {
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    } catch (err) {
+      alert('Camera/mic permission denied or unavailable: ' + err.message);
+      return;
+    }
+    socket.emit('room:create', { itemName });
+  }
+
+  socket.on('room:created', ({ roomId, itemName, hostName }) => {
+    amHost = true;
+    myCurrentRoomId = roomId;
+
+    roomKindLabel.textContent = 'You are hosting';
+    roomItemName.textContent = itemName;
+    roomHostName.textContent = hostName + ' (you)';
+    endLiveBtn.classList.remove('hidden');
+    leaveRoomBtn.classList.add('hidden');
+
+    resetVideoUI();
+    localPreview.srcObject = localStream;
+    localPreview.classList.remove('hidden');
+    videoPlaceholder.classList.add('hidden');
+    liveBadge.classList.remove('hidden');
+
+    clearChat();
+    showRoom();
+  });
+
+  // A viewer joined OUR room — server tells the host directly, so there's no
+  // race condition based on whether the host's camera was already on.
+  socket.on('webrtc:viewer-joined', async ({ viewerId }) => {
+    if (!localStream) return; // shouldn't happen, but guard defensively
+    const pc = new RTCPeerConnection(RTC_CONFIG);
+    hostPeerConnections[viewerId] = pc;
+
+    localStream.getTracks().forEach((track) => pc.addTrack(track, localStream));
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit('webrtc:ice-candidate', { to: viewerId, candidate: event.candidate });
+      }
+    };
+
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    socket.emit('webrtc:offer', { to: viewerId, sdp: offer });
+  });
+
+  socket.on('webrtc:answer', async ({ from, sdp }) => {
+    const pc = hostPeerConnections[from];
+    if (pc) await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+  });
+
+  endLiveBtn.addEventListener('click', () => {
+    socket.emit('room:end');
+    stopHosting();
+    showDirectory();
+  });
+
+  function stopHosting() {
+    if (localStream) {
+      localStream.getTracks().forEach((t) => t.stop());
+      localStream = null;
+    }
+    Object.values(hostPeerConnections).forEach((pc) => pc.close());
+    Object.keys(hostPeerConnections).forEach((k) => delete hostPeerConnections[k]);
+    amHost = false;
+    myCurrentRoomId = null;
+    resetVideoUI();
+  }
+
+  function enterRoomAsHost(roomId) {
+    // We're already hosting in the background; just bring the room screen forward.
+    showRoom();
+  }
+
+  // -----------------------------------------------------------------------
+  // VIEWER FLOW
+  // -----------------------------------------------------------------------
+  let viewerPC = null;
+  let currentHostId = null;
+
+  function joinRoom(roomId) {
+    socket.emit('room:join', { roomId });
+  }
+
+  socket.on('room:joined', ({ roomId, hostId, hostName, itemName, messages, viewerCount }) => {
+    amHost = false;
+    myCurrentRoomId = roomId;
+    currentHostId = hostId;
+
+    roomKindLabel.textContent = 'Watching live';
+    roomItemName.textContent = itemName;
+    roomHostName.textContent = hostName;
+    endLiveBtn.classList.add('hidden');
+    leaveRoomBtn.classList.remove('hidden');
+    viewerCountEl.textContent = viewerCount;
+
+    resetVideoUI();
+    placeholderText.textContent = 'Connecting to ' + hostName + '\u2019s stream…';
+
+    clearChat();
+    messages.forEach(appendMessage);
+
+    showRoom();
+  });
+
+  socket.on('room:error', ({ message }) => {
+    alert(message);
+  });
+
+  socket.on('webrtc:offer', async ({ from, sdp }) => {
+    cleanupViewerPeerConnection();
+    viewerPC = new RTCPeerConnection(RTC_CONFIG);
+
+    viewerPC.ontrack = (event) => {
+      remoteVideo.srcObject = event.streams[0];
+      remoteVideo.classList.remove('hidden');
+      videoPlaceholder.classList.add('hidden');
+      liveBadge.classList.remove('hidden');
+    };
+    viewerPC.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit('webrtc:ice-candidate', { to: from, candidate: event.candidate });
+      }
+    };
+
+    await viewerPC.setRemoteDescription(new RTCSessionDescription(sdp));
+    const answer = await viewerPC.createAnswer();
+    await viewerPC.setLocalDescription(answer);
+    socket.emit('webrtc:answer', { to: from, sdp: answer });
+  });
+
+  function cleanupViewerPeerConnection() {
+    if (viewerPC) {
+      viewerPC.close();
+      viewerPC = null;
+    }
+  }
+
+  leaveRoomBtn.addEventListener('click', () => {
+    socket.emit('room:leave');
+    cleanupViewerPeerConnection();
+    myCurrentRoomId = null;
+    showDirectory();
+  });
+
+  // -----------------------------------------------------------------------
+  // SHARED: ICE candidates (could target host-side or viewer-side PC)
+  // -----------------------------------------------------------------------
+  socket.on('webrtc:ice-candidate', async ({ from, candidate }) => {
+    try {
+      const pc = hostPeerConnections[from] || viewerPC;
+      if (pc) await pc.addIceCandidate(new RTCIceCandidate(candidate));
+    } catch (err) {
+      console.warn('ICE candidate add failed', err);
+    }
+  });
+
+  socket.on('webrtc:peer-disconnected', ({ peerId }) => {
+    if (hostPeerConnections[peerId]) {
+      hostPeerConnections[peerId].close();
+      delete hostPeerConnections[peerId];
+    }
+  });
+
+  socket.on('room:viewerCount', ({ roomId, viewerCount }) => {
+    if (roomId === myCurrentRoomId) viewerCountEl.textContent = viewerCount;
+  });
+
+  socket.on('room:ended', ({ roomId }) => {
+    if (roomId !== myCurrentRoomId) return;
+    if (!amHost) {
+      alert('This live session has ended.');
+      cleanupViewerPeerConnection();
+    }
+    myCurrentRoomId = null;
+    amHost = false;
+    resetVideoUI();
+    showDirectory();
+  });
+
+  // -----------------------------------------------------------------------
+  // CHAT + TEXT-BASED BIDDING (scoped to whichever room we're currently in)
+  // -----------------------------------------------------------------------
+  const chatFeed = document.getElementById('chatFeed');
+  const chatForm = document.getElementById('chatForm');
+  const chatInput = document.getElementById('chatInput');
+
+  function clearChat() {
+    chatFeed.innerHTML = '';
+  }
+
+  function appendMessage(msg) {
+    const row = document.createElement('div');
+    row.className = 'msg-pop leading-snug';
+    if (msg.kind === 'bid') {
+      row.innerHTML =
+        '<span class="font-semibold text-money">' + escapeHtml(msg.authorName) + '</span>' +
+        '<span class="text-gray-300"> bid </span>' +
+        '<span class="font-mono font-bold text-money">$' + msg.amount + '</span>';
+    } else {
+      row.innerHTML =
+        '<span class="font-semibold text-accent2">' + escapeHtml(msg.authorName) + '</span>' +
+        '<span class="text-gray-300">: ' + escapeHtml(msg.text) + '</span>';
+    }
+    chatFeed.appendChild(row);
+    chatFeed.scrollTop = chatFeed.scrollHeight;
+  }
+
+  socket.on('room:message', appendMessage);
+
+  chatForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const text = chatInput.value.trim();
+    if (!text || !myCurrentRoomId) return;
+    socket.emit('room:message', { text, kind: 'chat' });
+    chatInput.value = '';
+  });
+
+  document.querySelectorAll('.bidBtn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const amount = btn.getAttribute('data-amount');
+      if (!myCurrentRoomId) return;
+      socket.emit('room:message', { text: `bid $${amount}`, kind: 'bid', amount });
+    });
+  });
+
+  // Start on the directory screen.
+  showDirectory();
+})();
+</script>
+</body>
+</html>

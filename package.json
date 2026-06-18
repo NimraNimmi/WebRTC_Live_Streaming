@@ -1,0 +1,15 @@
+{
+  "name": "live-commerce-demo",
+  "version": "1.0.0",
+  "description": "Live-commerce auction prototype: WebRTC streaming + Socket.io bidding + live chat",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "socket.io": "^4.8.1"
+  }
+}

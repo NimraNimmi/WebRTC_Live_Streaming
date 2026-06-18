@@ -1,0 +1,38 @@
+# fly.toml — Fly.io app configuration
+# Generated for the live-commerce Socket.io demo.
+#
+# NOTE: replace `app = "..."` with the name you choose when running
+# `fly launch` (it will offer to write this file for you — if it does,
+# just make sure the [http_service] block below matches this one,
+# especially auto_stop_machines = false).
+
+app = "live-commerce-demo"
+primary_region = "iad"  # change to a region close to you/your interviewer if needed
+
+[build]
+
+[env]
+  PORT = "3000"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+
+  # IMPORTANT for Socket.io: keep at least one machine running so existing
+  # WebSocket connections aren't dropped, and so the demo doesn't have a
+  # cold-start delay mid-interview.
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "GET"
+    timeout = "5s"
+    path = "/"
+
+[[vm]]
+  cpu_kind = "shared"
+  cpus = 1
+  memory_mb = 256
